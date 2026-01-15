@@ -1,25 +1,30 @@
 package repository
 
 import (
-	db "GLPITGBOT/DB"
 	"context"
+	"fmt"
+
+	"GLPITGBOT/internal/config"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-type User struct {
-	ID       int64
-	Username string
-	Language string
-}
+var Pool *pgxpool.Pool
 
-func SaveUser(user User) error {
-	_, err := db.Pool.Exec(
-		context.Background(),
-		`INSERT INTO users (id, username, language)
-		 VALUES ($1, $2, $3)
-		 ON CONFLICT (id) DO NOTHING`,
-		user.ID,
-		user.Username,
-		user.Language,
+func ConnectPostgres(cfg *config.Config) error {
+	dsn := fmt.Sprintf(
+		"postgres://%s:%s@%s:%s/%s",
+		cfg.DBUser,
+		cfg.DBPassword,
+		cfg.DBHost,
+		cfg.DBPort,
+		cfg.DBName,
 	)
-	return err
+
+	pool, err := pgxpool.New(context.Background(), dsn)
+	if err != nil {
+		return err
+	}
+
+	Pool = pool
+	return nil
 }
