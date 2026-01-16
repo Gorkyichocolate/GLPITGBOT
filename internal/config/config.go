@@ -20,7 +20,7 @@ type Config struct {
 	DBName     string
 }
 
-// Load загружает конфигурацию из environment variables
+// Load загружает конфигурацию из .env
 func Load() *Config {
 	cfg := &Config{
 		TGBotToken: getEnv("TG_BOT_TOKEN", ""),

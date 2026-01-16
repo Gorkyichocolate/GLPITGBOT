@@ -11,7 +11,12 @@ func SetupRouter() *gin.Engine {
 	r.Use(gin.Recovery())
 
 	r.GET("/health", handlers.Health)
-	r.POST("/glpi/webhook", handlers.GLPIWebhook)
+
+	r.POST("/glpi/ticket", handlers.CreateTicket)
+
+	r.GET("/glpi/ticket/:id?view=status", handlers.TicketStatus)
+
+	r.GET("/glpi/ticket/:id?view=history", handlers.History)
 
 	return r
 }
