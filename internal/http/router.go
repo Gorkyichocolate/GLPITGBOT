@@ -16,7 +16,7 @@ func SetupRouter() *gin.Engine {
 
 	r.GET("/glpi/ticket/:id?view=status", handlers.TicketStatus)
 
-	r.GET("/glpi/ticket/:id?view=history", handlers.History)
+	r.GET("/glpi/ticket/:id?view=history", handlers.GetLastTickets)
 
 	return r
 }
