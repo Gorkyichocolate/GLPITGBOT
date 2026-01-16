@@ -11,19 +11,19 @@ import (
 )
 
 func main() {
-	// 1️⃣ Загружаем .env (локально / dev)
+	// Загружаем .env (локально / dev)
 	_ = godotenv.Load()
 
-	// 2️⃣ Загружаем конфигурацию
+	// Загружаем конфигурацию
 	cfg := config.Load()
 
-	// 3️⃣ Подключаемся к Postgres
+	// подключаемся к Postgres
 	if err := repository.ConnectPostgres(cfg); err != nil {
 		log.Fatal("failed to connect postgres:", err)
 	}
 	defer repository.Pool.Close()
 
-	// 4️⃣ Запускаем HTTP API (Gin)
+	// Запускаем HTTP API (Gin)
 	if err := http.StartServer(cfg); err != nil {
 		log.Fatal("http server error:", err)
 	}
