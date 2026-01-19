@@ -23,19 +23,19 @@ func UpdateTicketStatus(ticketID, status string) error {
 // Уведомление о смене статуса заявки
 func NotifyUserAboutStatusChange(ticketID, status string) error {
 
-	// 1️⃣ Получаем тикет
+	// 1 Получаем тикет
 	ticket, err := repository.GetTicketByTicketID(ticketID)
 	if err != nil {
 		return err
 	}
 
-	// 2️⃣ Получаем пользователя
+	// 2 Получаем пользователя
 	user, err := repository.GetUserByUserID(ticket.UserID)
 	if err != nil {
 		return err
 	}
 
-	// 3️⃣ Отправляем сообщение
+	// 3 Отправляем сообщение
 	return telegram.SendMessage(
 		user.TelegramID,
 		"Статус вашей заявки "+ticket.TicketID+" изменён: "+status,
