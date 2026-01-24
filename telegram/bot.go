@@ -22,7 +22,6 @@ func Bot() {
 	if err != nil {
 		log.Panic(err)
 	}
-	log.Println("TOKEN =", token)
 
 	bot.Debug = true
 
