@@ -29,7 +29,6 @@ func createFSM(
 			}
 
 			msg.Text = result
-			// State НЕ меняем
 
 		default:
 			msg.Text = "Выберите пункт в меню"
@@ -42,7 +41,23 @@ func createFSM(
 
 	case StateWaitDescription:
 		ticket.Description = text
-		msg.Text = "Заявка Создана"
+
+		err := db.CreateTicketByTelegramID(
+			chatID,
+			ticket.Title,
+			ticket.Description,
+		)
+
+		if err != nil {
+			msg.Text = "Ошибка при создании заявки"
+			ticket.State = StateIdle
+			return
+		}
+
+		msg.Text = "✅ Заявка успешно создана"
 		ticket.State = StateIdle
+
+		ticket.Title = ""
+		ticket.Description = ""
 	}
 }

@@ -16,6 +16,10 @@ func HandleMessage(bot *tgbotapi.BotAPI, update tgbotapi.Update) {
 		bot.Send(msg)
 		return
 	}
+	if text == "/auth" {
+		msg.Text = "Пожалуйста введите апи ключ"
+
+	}
 
 	createFSM(user, text, &msg, chatID)
 

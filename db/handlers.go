@@ -1,6 +1,7 @@
 package db
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -64,4 +65,39 @@ func GetLastUserTicketsText(telegramID int64, limit int) (string, error) {
 	}
 
 	return b.String(), nil
+}
+
+func CreateTicketByTelegramID(telegramID int64, title, description string) error {
+
+	if DB == nil {
+		return errors.New("DB is nil")
+	}
+
+	_, err := DB.Exec(`
+		INSERT INTO tickets (user_id, title, description, status, created_at)
+		SELECT u.id, $2, $3, 'open', NOW()
+		FROM users u
+		WHERE u.telegram_id = $1
+	`, telegramID, title, description)
+
+	return err
+}
+
+func SaveUser(user *User) error {
+
+	if DB == nil {
+		return errors.New("DB is nil")
+	}
+
+	_, err := DB.Exec(`
+		INSERT INTO users (telegram_id, username, api_token)
+		VALUES ($1, $2, $3)
+		ON CONFLICT (telegram_id) DO NOTHING
+	`,
+		user.TelegramId,
+		user.Username,
+		user.ApiToken,
+	)
+
+	return err
 }
