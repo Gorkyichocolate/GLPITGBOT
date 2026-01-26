@@ -18,7 +18,10 @@ func HandleMessage(bot *tgbotapi.BotAPI, update tgbotapi.Update) {
 	}
 	if text == "/auth" {
 		msg.Text = "Пожалуйста введите апи ключ"
-
+		Authorization()
+	}
+	if text == "/notifications" {
+		NotificationsKeyboard()
 	}
 
 	createFSM(user, text, &msg, chatID)
@@ -26,4 +29,8 @@ func HandleMessage(bot *tgbotapi.BotAPI, update tgbotapi.Update) {
 	if msg.Text != "" {
 		bot.Send(msg)
 	}
+}
+
+func Authorization() {
+
 }
