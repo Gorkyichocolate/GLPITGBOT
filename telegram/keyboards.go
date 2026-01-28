@@ -24,3 +24,25 @@ func NotificationsKeyboard(lang string) tgbotapi.ReplyKeyboardMarkup {
 		),
 	)
 }
+
+func PreferencesKeyboard(lang string) tgbotapi.ReplyKeyboardMarkup {
+	return tgbotapi.NewReplyKeyboard(
+		tgbotapi.NewKeyboardButtonRow(
+			tgbotapi.NewKeyboardButton(i18n.T(lang, "btn_notifications")),
+			tgbotapi.NewKeyboardButton(i18n.T(lang, "btn_exit")),
+		),
+		tgbotapi.NewKeyboardButtonRow(
+			tgbotapi.NewKeyboardButton(i18n.T(lang, "btn_language")),
+		),
+	)
+}
+
+func LanguageKeyboard() tgbotapi.InlineKeyboardMarkup {
+	return tgbotapi.NewInlineKeyboardMarkup(
+		tgbotapi.NewInlineKeyboardRow(
+			tgbotapi.NewInlineKeyboardButtonData("🇷🇺 Русский", "lang_ru"),
+			tgbotapi.NewInlineKeyboardButtonData("🇬🇧 English", "lang_en"),
+			tgbotapi.NewInlineKeyboardButtonData("🇰🇿 Қазақша", "lang_kk"),
+		),
+	)
+}

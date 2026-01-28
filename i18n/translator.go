@@ -12,3 +12,11 @@ func T(lang, key string) string {
 		return languages.ENG[key]
 	}
 }
+func DetectLang(code string) string {
+	switch code {
+	case "ru", "en", "kk":
+		return code
+	default:
+		return "en"
+	}
+}

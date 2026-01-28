@@ -6,4 +6,5 @@ const (
 	StateIdle State = iota
 	StateWaitTitle
 	StateWaitDescription
+	StateCreatingTicket
 )

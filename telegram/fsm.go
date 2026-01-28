@@ -2,62 +2,64 @@ package telegram
 
 import (
 	"GLPITGBOT/db"
+	"GLPITGBOT/i18n"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 )
 
 func createFSM(
-	ticket *Ticket,
+	user *User,
 	text string,
 	msg *tgbotapi.MessageConfig,
 	chatID int64,
 ) {
-	switch ticket.State {
+	lang := user.Lang
+
+	switch user.State {
 
 	case StateIdle:
 		switch text {
 
-		case "Создание Заявки":
-			msg.Text = "Введите Тему Заявки"
-			ticket.State = StateWaitTitle
+		case i18n.T(lang, "creating_tickets"):
+			user.ActiveTicket = &Ticket{}
+			msg.Text = i18n.T(lang, "enter_ticket_title")
+			user.State = StateWaitTitle
 
-		case "Последние Заявки":
+		case i18n.T(lang, "last_tickets"):
 			result, err := db.GetLastUserTicketsText(chatID, 5)
 			if err != nil {
-				msg.Text = "Ошибка при получении заявок"
+				msg.Text = i18n.T(lang, "error_get_tickets")
 				return
 			}
-
 			msg.Text = result
 
 		default:
-			msg.Text = "Выберите пункт в меню"
+			msg.Text = i18n.T(lang, "choose_menu")
 		}
 
 	case StateWaitTitle:
-		ticket.Title = text
-		msg.Text = "Введите Описание Заявки"
-		ticket.State = StateWaitDescription
+		user.ActiveTicket.Title = text
+		msg.Text = i18n.T(lang, "enter_ticket_description")
+		user.State = StateWaitDescription
 
 	case StateWaitDescription:
-		ticket.Description = text
+		user.ActiveTicket.Description = text
 
 		err := db.CreateTicketByTelegramID(
 			chatID,
-			ticket.Title,
-			ticket.Description,
+			user.ActiveTicket.Title,
+			user.ActiveTicket.Description,
 		)
 
 		if err != nil {
-			msg.Text = "Ошибка при создании заявки"
-			ticket.State = StateIdle
+			msg.Text = i18n.T(lang, "error_create_ticket")
+			user.State = StateIdle
 			return
 		}
 
-		msg.Text = "✅ Заявка успешно создана"
-		ticket.State = StateIdle
+		msg.Text = i18n.T(lang, "ticket_created")
 
-		ticket.Title = ""
-		ticket.Description = ""
+		user.State = StateIdle
+		user.ActiveTicket = nil
 	}
 }
