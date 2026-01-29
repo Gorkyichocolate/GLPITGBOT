@@ -9,8 +9,11 @@ import (
 func StartKeyboard(lang string) tgbotapi.ReplyKeyboardMarkup {
 	return tgbotapi.NewReplyKeyboard(
 		tgbotapi.NewKeyboardButtonRow(
-			tgbotapi.NewKeyboardButton(i18n.T(lang, "btn_create_ticket")),
-			tgbotapi.NewKeyboardButton(i18n.T(lang, "btn_last_tickets")),
+			tgbotapi.NewKeyboardButton(i18n.T(lang, "creating_tickets")),
+			tgbotapi.NewKeyboardButton(i18n.T(lang, "last_tickets")),
+		),
+		tgbotapi.NewKeyboardButtonRow(
+			tgbotapi.NewKeyboardButton(i18n.T(lang, "preferences")),
 		),
 	)
 }

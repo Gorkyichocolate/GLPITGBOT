@@ -4,9 +4,10 @@ import "time"
 
 type User struct {
 	Id         int
-	ApiToken   string
-	Username   string
 	TelegramId int64
+	Username   string
+	ApiToken   string
+	Lang       string
 }
 
 type Ticket struct {

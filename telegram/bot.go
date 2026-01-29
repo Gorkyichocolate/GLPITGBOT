@@ -38,6 +38,7 @@ func Bot() {
 			continue
 		}
 
-		HandleMessage(bot, update)
+		HandleUpdate(bot, update)
+
 	}
 }

@@ -2,28 +2,41 @@ package telegram
 
 import (
 	"GLPITGBOT/i18n"
+
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 )
 
-func HandleMessage(bot *tgbotapi.BotAPI, update tgbotapi.Update) {
+func HandleUpdate(bot *tgbotapi.BotAPI, update tgbotapi.Update) {
+
+	if update.CallbackQuery != nil {
+		handleCallback(bot, update)
+		return
+	}
+
+	if update.Message == nil {
+		return
+	}
+
 	chatID := update.Message.Chat.ID
-	user := getUser(chatID)
+	telegramID := update.Message.From.ID
 	text := update.Message.Text
 
-	lang := user.Lang
+	user := getUser(telegramID)
 
-	user.Lang = "ru"
-	user.State = StateCreatingTicket
-	user.ActiveTicket = &Ticket{}
+	if user.Lang == "" {
+		user.Lang = i18n.DetectLang(update.Message.From.LanguageCode)
+		saveUser(user)
+	}
 
 	msg := tgbotapi.NewMessage(chatID, "")
 
-	if text == "/start" {
+	if text == "" {
+		return
+	}
 
-		if user.Lang == "" {
-			user.Lang = i18n.DetectLang(update.Message.From.LanguageCode)
-			saveUser(user)
-		}
+	if text == "/start" {
+		user.State = StateIdle
+		user.ActiveTicket = nil
 
 		msg.Text = i18n.T(user.Lang, "start")
 		msg.ReplyMarkup = StartKeyboard(user.Lang)
@@ -31,33 +44,40 @@ func HandleMessage(bot *tgbotapi.BotAPI, update tgbotapi.Update) {
 		return
 	}
 
-	if text == "/auth" {
-		msg.Text = i18n.T(lang, "enter_api_key")
-		bot.Send(msg)
-		return
-	}
-
-	if text == i18n.T(lang, "btn_language") {
-		msg.Text = i18n.T(lang, "choose_language")
+	if text == i18n.T(user.Lang, "btn_language") {
+		msg.Text = i18n.T(user.Lang, "choose_language")
 		msg.ReplyMarkup = LanguageKeyboard()
 		bot.Send(msg)
 		return
 	}
 
-	if text == "/notifications" {
-		msg.Text = i18n.T(lang, "notifications")
-		msg.ReplyMarkup = NotificationsKeyboard(lang)
+	if text == i18n.T(user.Lang, "btn_notifications") {
+		msg.Text = i18n.T(user.Lang, "notifications")
+		msg.ReplyMarkup = NotificationsKeyboard(user.Lang)
 		bot.Send(msg)
 		return
 	}
 
-	if text == "/preferences" {
-		msg.Text = i18n.T(lang, "preferences")
-		msg.ReplyMarkup = PreferencesKeyboard(lang)
+	if text == i18n.T(user.Lang, "btn_exit") {
+		user.State = StateIdle
+		user.ActiveTicket = nil
+		msg.Text = i18n.T(user.Lang, "exit")
+		msg.ReplyMarkup = StartKeyboard(user.Lang)
 		bot.Send(msg)
+		return
 	}
 
-	createFSM(user, text, &msg, chatID)
+	if text == i18n.T(user.Lang, "preferences") {
+		user.State = StateIdle
+		user.ActiveTicket = nil
+
+		msg.Text = i18n.T(user.Lang, "preferences")
+		msg.ReplyMarkup = PreferencesKeyboard(user.Lang)
+		bot.Send(msg)
+		return
+	}
+
+	createFSM(user, text, &msg, telegramID)
 
 	if msg.Text != "" {
 		bot.Send(msg)

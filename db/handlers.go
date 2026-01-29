@@ -84,20 +84,69 @@ func CreateTicketByTelegramID(telegramID int64, title, description string) error
 }
 
 func SaveUser(user *User) error {
-
 	if DB == nil {
 		return errors.New("DB is nil")
 	}
 
 	_, err := DB.Exec(`
-		INSERT INTO users (telegram_id, username, api_token)
-		VALUES ($1, $2, $3)
-		ON CONFLICT (telegram_id) DO NOTHING
+		INSERT INTO users (telegram_id, username, api_token, lang)
+		VALUES ($1, $2, $3, $4)
+		ON CONFLICT (telegram_id) DO UPDATE SET
+			username = EXCLUDED.username,
+			api_token = EXCLUDED.api_token,
+			lang = EXCLUDED.lang
 	`,
 		user.TelegramId,
 		user.Username,
 		user.ApiToken,
+		user.Lang,
 	)
 
 	return err
+}
+
+func GetUserByTelegramID(telegramID int64) (*User, error) {
+	if DB == nil {
+		return nil, errors.New("DB is nil")
+	}
+
+	u := &User{}
+
+	err := DB.QueryRow(`
+		SELECT id, telegram_id, username, api_token, lang
+		FROM users
+		WHERE telegram_id = $1
+	`, telegramID).Scan(
+		&u.Id,
+		&u.TelegramId,
+		&u.Username,
+		&u.ApiToken,
+		&u.Lang,
+	)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return u, nil
+}
+
+func EnsureUser(telegramID int64, username string) (*User, error) {
+	user, err := GetUserByTelegramID(telegramID)
+	if err == nil {
+		return user, nil
+	}
+
+	user = &User{
+		TelegramId: telegramID,
+		Username:   username,
+		Lang:       "",
+	}
+
+	err = SaveUser(user)
+	if err != nil {
+		return nil, err
+	}
+
+	return user, nil
 }

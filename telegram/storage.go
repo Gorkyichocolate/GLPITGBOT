@@ -1,27 +1,29 @@
 package telegram
 
-import "sync"
+import (
+	"GLPITGBOT/db"
+	"sync"
+)
 
 var (
 	users = make(map[int64]*User)
 	mu    sync.Mutex
 )
 
-func getUser(chatID int64) *User {
-	mu.Lock()
-	defer mu.Unlock()
-
-	if user, ok := users[chatID]; ok {
+func getUser(telegramID int64) *User {
+	user, err := db.GetUserByTelegramID(telegramID)
+	if err == nil {
 		return user
 	}
 
-	user := &User{
-		ID:    chatID,
-		State: StateIdle,
-		Lang:  "",
+	// если нет в БД — создаём
+	user = &User{
+		TelegramID: telegramID,
+		Lang:       "",
+		State:      StateIdle,
 	}
 
-	users[chatID] = user
+	db.SaveUser(user)
 	return user
 }
 
