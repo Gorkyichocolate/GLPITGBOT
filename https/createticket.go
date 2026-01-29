@@ -6,7 +6,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func CheckAuth(c *gin.Context) {
+func CreateTicket(c *gin.Context) {
 
 	c.JSON(http.StatusOK, true)
 }

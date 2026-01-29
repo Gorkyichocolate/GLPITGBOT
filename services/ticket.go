@@ -1,5 +1,5 @@
 package services
 
-func CreateTicket() {
+func Create() {
 	//http+db
 }
