@@ -1,14 +1,6 @@
-package db
+package models
 
 import "time"
-
-type User struct {
-	Id         int
-	TelegramId int64
-	Username   string
-	ApiToken   string
-	Lang       string
-}
 
 type Ticket struct {
 	Id          int

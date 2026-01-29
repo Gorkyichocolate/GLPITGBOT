@@ -1,7 +1,10 @@
 package telegram
 
 import (
-	"GLPITGBOT/i18n"
+	"GLPITGBOT/db"
+	"GLPITGBOT/models"
+	"GLPITGBOT/telegram/i18n"
+	"log"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 )
@@ -21,65 +24,66 @@ func HandleUpdate(bot *tgbotapi.BotAPI, update tgbotapi.Update) {
 	telegramID := update.Message.From.ID
 	text := update.Message.Text
 
-	user := getUser(telegramID)
+	user, err := db.EnsureUser(
+		update.Message.From.ID,
+		update.Message.From.UserName,
+	)
+	if err != nil {
+		log.Println("ensure user error:", err)
+		return
+	}
 
 	if user.Lang == "" {
 		user.Lang = i18n.DetectLang(update.Message.From.LanguageCode)
-		saveUser(user)
+		_ = db.SaveUser(user)
 	}
 
 	msg := tgbotapi.NewMessage(chatID, "")
 
-	if text == "" {
-		return
-	}
+	switch text {
 
-	if text == "/start" {
-		user.State = StateIdle
+	case "/start":
+		user.State = models.StateIdle
 		user.ActiveTicket = nil
 
 		msg.Text = i18n.T(user.Lang, "start")
 		msg.ReplyMarkup = StartKeyboard(user.Lang)
-		bot.Send(msg)
-		return
-	}
 
-	if text == i18n.T(user.Lang, "btn_language") {
+	case i18n.T(user.Lang, "btn_language"):
 		msg.Text = i18n.T(user.Lang, "choose_language")
 		msg.ReplyMarkup = LanguageKeyboard()
-		bot.Send(msg)
-		return
-	}
 
-	if text == i18n.T(user.Lang, "btn_notifications") {
+	case i18n.T(user.Lang, "btn_notifications"):
 		msg.Text = i18n.T(user.Lang, "notifications")
 		msg.ReplyMarkup = NotificationsKeyboard(user.Lang)
-		bot.Send(msg)
-		return
-	}
 
-	if text == i18n.T(user.Lang, "btn_exit") {
-		user.State = StateIdle
+	case i18n.T(user.Lang, "btn_exit"):
+		user.State = models.StateIdle
 		user.ActiveTicket = nil
+
 		msg.Text = i18n.T(user.Lang, "exit")
 		msg.ReplyMarkup = StartKeyboard(user.Lang)
-		bot.Send(msg)
-		return
-	}
 
-	if text == i18n.T(user.Lang, "preferences") {
-		user.State = StateIdle
+	case i18n.T(user.Lang, "preferences"):
+		user.State = models.StateIdle
 		user.ActiveTicket = nil
 
 		msg.Text = i18n.T(user.Lang, "preferences")
 		msg.ReplyMarkup = PreferencesKeyboard(user.Lang)
-		bot.Send(msg)
-		return
+
+	default:
+		command := resolveCommand(user.Lang, text)
+		createFSM(user, command, text, &msg, telegramID)
 	}
 
-	createFSM(user, text, &msg, telegramID)
+	if msg.Text == "" {
+		msg.Text = "⚠️ Неизвестная команда"
+		msg.ReplyMarkup = StartKeyboard(user.Lang)
+	}
 
-	if msg.Text != "" {
-		bot.Send(msg)
+	_ = db.SaveUser(user)
+
+	if _, err := bot.Send(msg); err != nil {
+		log.Println("SEND ERROR:", err)
 	}
 }

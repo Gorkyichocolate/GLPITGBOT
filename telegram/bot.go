@@ -10,21 +10,17 @@ import (
 
 func Bot() {
 	err := godotenv.Load()
-
 	if err != nil {
 		log.Fatal("Error loading .env file")
 	}
 
 	token := os.Getenv("TG_BOT_TOKEN")
-
 	bot, err := tgbotapi.NewBotAPI(token)
-
 	if err != nil {
 		log.Panic(err)
 	}
 
 	bot.Debug = true
-
 	log.Printf("Authorized on account %s", bot.Self.UserName)
 
 	u := tgbotapi.NewUpdate(0)
@@ -33,12 +29,7 @@ func Bot() {
 	updates := bot.GetUpdatesChan(u)
 
 	for update := range updates {
-
-		if update.Message == nil {
-			continue
-		}
-
+		// ❗ ВСЕ update передаём в HandleUpdate
 		HandleUpdate(bot, update)
-
 	}
 }

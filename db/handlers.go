@@ -1,6 +1,8 @@
 package db
 
 import (
+	"GLPITGBOT/models"
+	"database/sql"
 	"errors"
 	"fmt"
 	"strings"
@@ -83,42 +85,16 @@ func CreateTicketByTelegramID(telegramID int64, title, description string) error
 	return err
 }
 
-func SaveUser(user *User) error {
-	if DB == nil {
-		return errors.New("DB is nil")
-	}
-
-	_, err := DB.Exec(`
-		INSERT INTO users (telegram_id, username, api_token, lang)
-		VALUES ($1, $2, $3, $4)
-		ON CONFLICT (telegram_id) DO UPDATE SET
-			username = EXCLUDED.username,
-			api_token = EXCLUDED.api_token,
-			lang = EXCLUDED.lang
-	`,
-		user.TelegramId,
-		user.Username,
-		user.ApiToken,
-		user.Lang,
-	)
-
-	return err
-}
-
-func GetUserByTelegramID(telegramID int64) (*User, error) {
-	if DB == nil {
-		return nil, errors.New("DB is nil")
-	}
-
-	u := &User{}
+func GetUserByTelegramID(telegramID int64) (*models.User, error) {
+	u := &models.User{}
 
 	err := DB.QueryRow(`
 		SELECT id, telegram_id, username, api_token, lang
 		FROM users
 		WHERE telegram_id = $1
 	`, telegramID).Scan(
-		&u.Id,
-		&u.TelegramId,
+		&u.ID,
+		&u.TelegramID,
 		&u.Username,
 		&u.ApiToken,
 		&u.Lang,
@@ -131,20 +107,43 @@ func GetUserByTelegramID(telegramID int64) (*User, error) {
 	return u, nil
 }
 
-func EnsureUser(telegramID int64, username string) (*User, error) {
+func SaveUser(user *models.User) error {
+	_, err := DB.Exec(`
+		INSERT INTO users (telegram_id, username, api_token, lang)
+		VALUES ($1, $2, $3, $4)
+		ON CONFLICT (telegram_id) DO UPDATE SET
+			username = EXCLUDED.username,
+			api_token = EXCLUDED.api_token,
+			lang = EXCLUDED.lang
+	`,
+		user.TelegramID,
+		user.Username,
+		user.ApiToken,
+		user.Lang,
+	)
+
+	return err
+}
+
+func EnsureUser(telegramID int64, username string) (*models.User, error) {
 	user, err := GetUserByTelegramID(telegramID)
+
 	if err == nil {
 		return user, nil
 	}
 
-	user = &User{
-		TelegramId: telegramID,
-		Username:   username,
-		Lang:       "",
+	if !errors.Is(err, sql.ErrNoRows) {
+		return nil, err
 	}
 
-	err = SaveUser(user)
-	if err != nil {
+	user = &models.User{
+		TelegramID: telegramID,
+		Username:   username,
+		Lang:       "",
+		State:      models.StateIdle,
+	}
+
+	if err := SaveUser(user); err != nil {
 		return nil, err
 	}
 

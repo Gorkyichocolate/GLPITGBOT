@@ -1,7 +1,7 @@
 package telegram
 
 import (
-	"GLPITGBOT/i18n"
+	"GLPITGBOT/telegram/i18n"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 )
@@ -48,4 +48,10 @@ func LanguageKeyboard() tgbotapi.InlineKeyboardMarkup {
 			tgbotapi.NewInlineKeyboardButtonData("🇰🇿 Қазақша", "lang_kk"),
 		),
 	)
+}
+
+func RemoveKeyboard() tgbotapi.ReplyKeyboardRemove {
+	return tgbotapi.ReplyKeyboardRemove{
+		RemoveKeyboard: true,
+	}
 }
