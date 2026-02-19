@@ -10,6 +10,7 @@ var ENG = map[string]string{
 	"exit":             "Exit",
 
 	"btn_exit":          "Exit",
+	"btn_start":         "Start",
 	"btn_language":      "Change language",
 	"btn_notifications": "Notifications",
 
@@ -36,6 +37,7 @@ var RUS = map[string]string{
 	"exit":             "Выход",
 
 	"btn_exit":          "Выйти",
+	"btn_start":         "Старт",
 	"btn_language":      "Сменить язык",
 	"btn_notifications": "Уведомления",
 
@@ -62,6 +64,7 @@ var KAZ = map[string]string{
 	"exit":             "Шығу",
 
 	"btn_exit":          "Шығу",
+	"btn_start":         "Бастау",
 	"btn_language":      "Тілді ауыстыру",
 	"btn_notifications": "Хабарламалар",
 

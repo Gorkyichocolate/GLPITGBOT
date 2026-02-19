@@ -1,19 +1,16 @@
 package telegram
 
-import "GLPITGBOT/telegram/i18n"
-
 const (
-	CmdCreateTicket = "CMD_CREATE_TICKET"
-	CmdLastTickets  = "CMD_LAST_TICKETS"
+	CbStart         = "cb_start"
+	CbCreateTicket  = "cb_create_ticket"
+	CbLastTickets   = "cb_last_tickets"
+	CbPreferences   = "cb_preferences"
+	CbNotifications = "cb_notifications"
+	CbOpenLanguage  = "cb_open_language"
+	CbLangRU        = "lang_ru"
+	CbLangEN        = "lang_en"
+	CbLangKK        = "lang_kk"
+	CbExit          = "cb_exit"
+	CbMainMenu      = "cb_main_menu"
+	CbCancelTicket  = "cb_cancel_ticket"
 )
-
-func resolveCommand(lang, text string) string {
-	switch text {
-	case i18n.T(lang, "creating_tickets"):
-		return CmdCreateTicket
-	case i18n.T(lang, "last_tickets"):
-		return CmdLastTickets
-	default:
-		return ""
-	}
-}

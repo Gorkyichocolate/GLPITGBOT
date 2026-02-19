@@ -29,7 +29,6 @@ func Bot() {
 	updates := bot.GetUpdatesChan(u)
 
 	for update := range updates {
-		// ❗ ВСЕ update передаём в HandleUpdate
 		HandleUpdate(bot, update)
 	}
 }

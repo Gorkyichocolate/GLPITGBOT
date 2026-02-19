@@ -6,7 +6,7 @@ import (
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 )
 
-func StartKeyboard(lang string) tgbotapi.ReplyKeyboardMarkup {
+func MainMenuKeyboard(lang string) tgbotapi.ReplyKeyboardMarkup {
 	return tgbotapi.NewReplyKeyboard(
 		tgbotapi.NewKeyboardButtonRow(
 			tgbotapi.NewKeyboardButton(i18n.T(lang, "creating_tickets")),
@@ -18,12 +18,10 @@ func StartKeyboard(lang string) tgbotapi.ReplyKeyboardMarkup {
 	)
 }
 
-func NotificationsKeyboard(lang string) tgbotapi.ReplyKeyboardMarkup {
-	return tgbotapi.NewReplyKeyboard(
-		tgbotapi.NewKeyboardButtonRow(
-			tgbotapi.NewKeyboardButton(i18n.T(lang, "btn_notifications")),
-			tgbotapi.NewKeyboardButton(i18n.T(lang, "btn_language")),
-			tgbotapi.NewKeyboardButton(i18n.T(lang, "btn_exit")),
+func NotificationsKeyboard(lang string) tgbotapi.InlineKeyboardMarkup {
+	return tgbotapi.NewInlineKeyboardMarkup(
+		tgbotapi.NewInlineKeyboardRow(
+			tgbotapi.NewInlineKeyboardButtonData(i18n.T(lang, "btn_exit"), CbMainMenu),
 		),
 	)
 }
@@ -32,10 +30,12 @@ func PreferencesKeyboard(lang string) tgbotapi.ReplyKeyboardMarkup {
 	return tgbotapi.NewReplyKeyboard(
 		tgbotapi.NewKeyboardButtonRow(
 			tgbotapi.NewKeyboardButton(i18n.T(lang, "btn_notifications")),
-			tgbotapi.NewKeyboardButton(i18n.T(lang, "btn_exit")),
 		),
 		tgbotapi.NewKeyboardButtonRow(
 			tgbotapi.NewKeyboardButton(i18n.T(lang, "btn_language")),
+		),
+		tgbotapi.NewKeyboardButtonRow(
+			tgbotapi.NewKeyboardButton(i18n.T(lang, "btn_exit")),
 		),
 	)
 }
@@ -43,15 +43,20 @@ func PreferencesKeyboard(lang string) tgbotapi.ReplyKeyboardMarkup {
 func LanguageKeyboard() tgbotapi.InlineKeyboardMarkup {
 	return tgbotapi.NewInlineKeyboardMarkup(
 		tgbotapi.NewInlineKeyboardRow(
-			tgbotapi.NewInlineKeyboardButtonData("🇷🇺 Русский", "lang_ru"),
-			tgbotapi.NewInlineKeyboardButtonData("🇬🇧 English", "lang_en"),
-			tgbotapi.NewInlineKeyboardButtonData("🇰🇿 Қазақша", "lang_kk"),
+			tgbotapi.NewInlineKeyboardButtonData("🇷🇺 Русский", CbLangRU),
+			tgbotapi.NewInlineKeyboardButtonData("🇬🇧 English", CbLangEN),
+			tgbotapi.NewInlineKeyboardButtonData("🇰🇿 Қазақша", CbLangKK),
+		),
+		tgbotapi.NewInlineKeyboardRow(
+			tgbotapi.NewInlineKeyboardButtonData("⬅️", CbPreferences),
 		),
 	)
 }
 
-func RemoveKeyboard() tgbotapi.ReplyKeyboardRemove {
-	return tgbotapi.ReplyKeyboardRemove{
-		RemoveKeyboard: true,
-	}
+func CancelTicketKeyboard(lang string) tgbotapi.InlineKeyboardMarkup {
+	return tgbotapi.NewInlineKeyboardMarkup(
+		tgbotapi.NewInlineKeyboardRow(
+			tgbotapi.NewInlineKeyboardButtonData(i18n.T(lang, "btn_exit"), CbCancelTicket),
+		),
+	)
 }
