@@ -1,54 +1,97 @@
 package https
 
 import (
-	"time"
-	"net/http"
+	"GLPITGBOT/models"
+	"bytes"
+	"encoding/json"
+	"fmt"
 	"io"
+	"net/http"
+	"os"
+	"strings"
+	"time"
+
 	"github.com/gin-gonic/gin"
 )
 
-func CreateTicket(c *gin.Context) {
-	token := c.Query("token")
-	app_token := c.Query("app_token")
+type createTicketRequest struct {
+	Input models.CreateTicketInput `json:"input"`
+}
 
-	if token == "" || app_token == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Missing token or app_token"})
-		return
+func CreateTicketWithSession(sessionToken string, input models.CreateTicketInput) ([]byte, int, error) {
+	baseURL := strings.TrimSpace(os.Getenv("GLPI_URL"))
+	appToken := strings.TrimSpace(os.Getenv("APP_TOKEN"))
+	sessionToken = strings.TrimSpace(sessionToken)
+
+	if baseURL == "" {
+		return nil, 0, fmt.Errorf("GLPI_URL is empty")
 	}
 
-	req, err := http.NewRequest("POST", "http://localhost:8080/apirest.php/Ticket", nil)
+	if appToken == "" {
+		return nil, 0, fmt.Errorf("APP_TOKEN is empty")
+	}
 
+	if sessionToken == "" {
+		return nil, 0, fmt.Errorf("session token is empty")
+	}
+
+	payload, err := json.Marshal(createTicketRequest{Input: input})
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
+		return nil, 0, err
 	}
-	
+
+	endpoint := strings.TrimRight(baseURL, "/") + "/apirest.php/Ticket"
+	req, err := http.NewRequest(http.MethodPost, endpoint, bytes.NewBuffer(payload))
+	if err != nil {
+		return nil, 0, err
+	}
+
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization","user-token "+token)
-	req.Header.Set("App-Token", app_token)
-	client := &http.Client{
-		Timeout: 10 * time.Second,
-	}
+	req.Header.Set("App-Token", appToken)
+	req.Header.Set("Session-Token", sessionToken)
+
+	client := &http.Client{Timeout: 10 * time.Second}
 	resp, err := client.Do(req)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
+		return nil, 0, err
 	}
 	defer resp.Body.Close()
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
+		return nil, 0, err
 	}
-	
-	c.Data(resp.StatusCode, "application/json", body)
-	if resp.StatusCode != http.StatusOK {
+
+	if resp.StatusCode != http.StatusCreated && resp.StatusCode != http.StatusOK {
+		return body, resp.StatusCode, fmt.Errorf("create ticket failed: status=%d body=%s", resp.StatusCode, string(body))
+	}
+
+	return body, resp.StatusCode, nil
+}
+
+func CreateTicket(c *gin.Context) {
+	sessionToken := c.Query("session_token")
+	if strings.TrimSpace(sessionToken) == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Missing session_token"})
 		return
 	}
 
-	
-	c.JSON(http.StatusOK, gin.H{
-		"ok": true,
-	})
+	var reqBody createTicketRequest
+	if err := c.ShouldBindJSON(&reqBody); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	body, statusCode, err := CreateTicketWithSession(sessionToken, reqBody.Input)
+	if err != nil {
+		if statusCode > 0 {
+			c.Data(statusCode, "application/json", body)
+			return
+		}
+
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.Data(statusCode, "application/json", body)
 }

@@ -3,6 +3,7 @@ CREATE TABLE IF NOT EXISTS users (
     telegram_id BIGINT NOT NULL UNIQUE,
     username TEXT NOT NULL DEFAULT '',
     api_token TEXT NOT NULL DEFAULT '',
+    session_token TEXT NOT NULL DEFAULT '',
     lang VARCHAR(8) NOT NULL DEFAULT 'ru',
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()

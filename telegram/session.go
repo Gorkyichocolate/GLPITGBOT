@@ -13,9 +13,12 @@ type sessionData struct {
 var userSessions sync.Map
 
 const (
-	StepIdle            = ""
-	StepWaitTicketTitle = "wait_ticket_title"
-	StepWaitTicketDesc  = "wait_ticket_description"
+	StepIdle               = ""
+	StepWaitApiToken       = "wait_api_token"
+	StepWaitTicketTitle    = "wait_ticket_title"
+	StepWaitTicketDesc     = "wait_ticket_description"
+	StepWaitTicketPriority = "wait_ticket_priority"
+	StepWaitTicketDueDate  = "wait_ticket_due_date"
 )
 
 func getSession(telegramID int64) sessionData {

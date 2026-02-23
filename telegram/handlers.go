@@ -1,13 +1,19 @@
 package telegram
 
 import (
+	glpihttp "GLPITGBOT/https"
 	"GLPITGBOT/models"
 	"GLPITGBOT/repository"
 	"GLPITGBOT/telegram/i18n"
 	"log"
+	"strconv"
+	"strings"
+	"time"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 )
+
+const dueDateLayout = "2006-01-02 15:04:05"
 
 func HandleUpdate(bot *tgbotapi.BotAPI, update tgbotapi.Update) {
 
@@ -22,7 +28,7 @@ func HandleUpdate(bot *tgbotapi.BotAPI, update tgbotapi.Update) {
 
 	chatID := update.Message.Chat.ID
 	telegramID := update.Message.From.ID
-	text := update.Message.Text
+	text := strings.TrimSpace(update.Message.Text)
 
 	user, err := repository.EnsureUser(
 		update.Message.From.ID,
@@ -40,6 +46,49 @@ func HandleUpdate(bot *tgbotapi.BotAPI, update tgbotapi.Update) {
 
 	msg := tgbotapi.NewMessage(chatID, "")
 	session := getSession(telegramID)
+
+	if session.Step == StepWaitApiToken {
+		sessionToken, err := glpihttp.AuthByUserToken(text)
+		if err != nil {
+			msg.Text = i18n.T(user.Lang, "auth_failed")
+			msg.ReplyMarkup = MainMenuKeyboard(user.Lang)
+			if _, sendErr := bot.Send(msg); sendErr != nil {
+				log.Println("SEND ERROR:", sendErr)
+			}
+			return
+		}
+
+		user.ApiToken = text
+		user.SessionToken = sessionToken
+		if err := repository.SaveUser(user); err != nil {
+			log.Println("save user error:", err)
+			msg.Text = i18n.T(user.Lang, "auth_failed")
+			msg.ReplyMarkup = MainMenuKeyboard(user.Lang)
+			if _, sendErr := bot.Send(msg); sendErr != nil {
+				log.Println("SEND ERROR:", sendErr)
+			}
+			return
+		}
+
+		resetSession(telegramID)
+		msg.Text = i18n.T(user.Lang, "auth_success")
+		msg.ReplyMarkup = MainMenuKeyboard(user.Lang)
+		if _, err := bot.Send(msg); err != nil {
+			log.Println("SEND ERROR:", err)
+		}
+		return
+	}
+
+	if !repository.IsUserAuthorized(user) {
+		session.Step = StepWaitApiToken
+		setSession(telegramID, session)
+		msg.Text = i18n.T(user.Lang, "enter_api_key")
+		msg.ReplyMarkup = MainMenuKeyboard(user.Lang)
+		if _, err := bot.Send(msg); err != nil {
+			log.Println("SEND ERROR:", err)
+		}
+		return
+	}
 
 	if text == "/start" {
 		resetSession(telegramID)
@@ -76,17 +125,79 @@ func HandleUpdate(bot *tgbotapi.BotAPI, update tgbotapi.Update) {
 			break
 		}
 
-		err := repository.CreateTicketByTelegramID(
-			telegramID,
-			session.ActiveTicket.Title,
-			text,
-		)
+		session.ActiveTicket.Description = text
+		session.Step = StepWaitTicketPriority
+		setSession(telegramID, session)
 
-		if err != nil {
+		msg.Text = i18n.T(user.Lang, "enter_ticket_priority")
+		msg.ReplyMarkup = CancelTicketKeyboard(user.Lang)
+
+	case StepWaitTicketPriority:
+		if session.ActiveTicket == nil {
+			session = sessionData{
+				Step:         StepWaitTicketTitle,
+				ActiveTicket: &models.Ticket{},
+			}
+			setSession(telegramID, session)
+			msg.Text = i18n.T(user.Lang, "enter_ticket_title")
+			msg.ReplyMarkup = CancelTicketKeyboard(user.Lang)
+			break
+		}
+
+		priority, err := strconv.Atoi(text)
+		if err != nil || priority < 0 || priority > 5 {
+			msg.Text = i18n.T(user.Lang, "invalid_ticket_priority")
+			msg.ReplyMarkup = CancelTicketKeyboard(user.Lang)
+			break
+		}
+
+		session.ActiveTicket.Priority = priority
+		session.Step = StepWaitTicketDueDate
+		setSession(telegramID, session)
+
+		msg.Text = i18n.T(user.Lang, "enter_ticket_due_date")
+		msg.ReplyMarkup = CancelTicketKeyboard(user.Lang)
+
+	case StepWaitTicketDueDate:
+		if session.ActiveTicket == nil {
+			session = sessionData{
+				Step:         StepWaitTicketTitle,
+				ActiveTicket: &models.Ticket{},
+			}
+			setSession(telegramID, session)
+			msg.Text = i18n.T(user.Lang, "enter_ticket_title")
+			msg.ReplyMarkup = CancelTicketKeyboard(user.Lang)
+			break
+		}
+
+		if _, err := time.Parse(dueDateLayout, text); err != nil {
+			msg.Text = i18n.T(user.Lang, "invalid_ticket_due_date")
+			msg.ReplyMarkup = CancelTicketKeyboard(user.Lang)
+			break
+		}
+
+		input := models.CreateTicketInput{
+			Name:       session.ActiveTicket.Title,
+			Content:    session.ActiveTicket.Description,
+			EntitiesID: 0,
+			Status:     1,
+			Priority:   session.ActiveTicket.Priority,
+			DueDate:    text,
+		}
+
+		if _, _, err := glpihttp.CreateTicketWithSession(user.SessionToken, input); err != nil {
 			msg.Text = i18n.T(user.Lang, "error_create_ticket")
 			msg.ReplyMarkup = MainMenuKeyboard(user.Lang)
 			resetSession(telegramID)
 			break
+		}
+
+		if err := repository.CreateTicketByTelegramID(
+			telegramID,
+			session.ActiveTicket.Title,
+			session.ActiveTicket.Description,
+		); err != nil {
+			log.Println("save local ticket error:", err)
 		}
 
 		msg.Text = i18n.T(user.Lang, "ticket_created")

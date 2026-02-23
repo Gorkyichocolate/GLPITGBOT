@@ -6,6 +6,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"strings"
 )
 
 func ensureDB() error {
@@ -28,7 +29,7 @@ func GetUserByTelegramID(telegramID int64) (*models.User, error) {
 	u := &models.User{}
 
 	err := db.DB.QueryRow(`
-		SELECT id, telegram_id, username, api_token, lang
+		SELECT id, telegram_id, username, api_token, session_token, lang
 		FROM users
 		WHERE telegram_id = $1
 	`, telegramID).Scan(
@@ -36,6 +37,7 @@ func GetUserByTelegramID(telegramID int64) (*models.User, error) {
 		&u.TelegramID,
 		&u.Username,
 		&u.ApiToken,
+		&u.SessionToken,
 		&u.Lang,
 	)
 
@@ -60,23 +62,26 @@ func SaveUser(user *models.User) error {
 	}
 
 	err := db.DB.QueryRow(`
-		INSERT INTO users (telegram_id, username, api_token, lang)
-		VALUES ($1, $2, $3, $4)
+		INSERT INTO users (telegram_id, username, api_token, session_token, lang)
+		VALUES ($1, $2, $3, $4, $5)
 		ON CONFLICT (telegram_id) DO UPDATE SET
 			username = EXCLUDED.username,
 			api_token = EXCLUDED.api_token,
+			session_token = EXCLUDED.session_token,
 			lang = EXCLUDED.lang
-		RETURNING id, telegram_id, username, api_token, lang
+		RETURNING id, telegram_id, username, api_token, session_token, lang
 	`,
 		user.TelegramID,
 		user.Username,
 		user.ApiToken,
+		user.SessionToken,
 		user.Lang,
 	).Scan(
 		&user.ID,
 		&user.TelegramID,
 		&user.Username,
 		&user.ApiToken,
+		&user.SessionToken,
 		&user.Lang,
 	)
 
@@ -109,4 +114,12 @@ func EnsureUser(telegramID int64, username string) (*models.User, error) {
 	}
 
 	return user, nil
+}
+
+func IsUserAuthorized(user *models.User) bool {
+	if user == nil {
+		return false
+	}
+
+	return strings.TrimSpace(user.ApiToken) != "" && strings.TrimSpace(user.SessionToken) != ""
 }

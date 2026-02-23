@@ -31,6 +31,27 @@ func handleCallback(bot *tgbotapi.BotAPI, update tgbotapi.Update) {
 	msg := tgbotapi.NewMessage(q.Message.Chat.ID, "")
 	session := getSession(q.From.ID)
 
+	if !repository.IsUserAuthorized(user) {
+		session.Step = StepWaitApiToken
+		setSession(q.From.ID, session)
+		msg.Text = i18n.T(user.Lang, "enter_api_key")
+		msg.ReplyMarkup = MainMenuKeyboard(user.Lang)
+
+		if _, err := bot.Send(tgbotapi.NewCallback(q.ID, "")); err != nil {
+			log.Println("callback ack error:", err)
+		}
+
+		if _, err := bot.Send(msg); err != nil {
+			log.Println("send msg error:", err)
+		}
+
+		if err := repository.SaveUser(user); err != nil {
+			log.Println("save user error:", err)
+		}
+
+		return
+	}
+
 	switch q.Data {
 	case CbCreateTicket:
 		session = sessionData{
