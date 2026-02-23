@@ -17,6 +17,8 @@ func main() {
 	api := r.Group("/api")
 	{
 		api.GET("/auth/check", https.CheckAuth)
+		api.POST("/ticket/create", https.CreateTicket)
+		api.POST("/ticket/update", https.NotifyTicketUpdate)
 	}
 
 	r.Run(":8080")
