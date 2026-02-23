@@ -9,8 +9,16 @@ import (
 )
 
 func GetLastUserTicketsText(telegramID int64, limit int) (string, error) {
-	if db.DB == nil {
-		return "DB is nil", nil
+	if err := ensureDB(); err != nil {
+		return "", err
+	}
+
+	if telegramID == 0 {
+		return "", fmt.Errorf("invalid telegram id: %d", telegramID)
+	}
+
+	if limit <= 0 {
+		limit = 5
 	}
 
 	rows, err := db.DB.Query(`
@@ -61,6 +69,10 @@ func GetLastUserTicketsText(telegramID int64, limit int) (string, error) {
 		counter++
 	}
 
+	if err := rows.Err(); err != nil {
+		return "", err
+	}
+
 	if counter == 1 {
 		return "У вас пока нет заявок.", nil
 	}
@@ -69,16 +81,40 @@ func GetLastUserTicketsText(telegramID int64, limit int) (string, error) {
 }
 
 func CreateTicketByTelegramID(telegramID int64, title, description string) error {
-	if db.DB == nil {
-		return errors.New("DB is nil")
+	if err := ensureDB(); err != nil {
+		return err
 	}
 
-	_, err := db.DB.Exec(`
+	if telegramID == 0 {
+		return fmt.Errorf("invalid telegram id: %d", telegramID)
+	}
+
+	if strings.TrimSpace(title) == "" {
+		return errors.New("title is empty")
+	}
+
+	if strings.TrimSpace(description) == "" {
+		return errors.New("description is empty")
+	}
+
+	result, err := db.DB.Exec(`
 		INSERT INTO tickets (user_id, title, description, status, created_at)
 		SELECT u.id, $2, $3, 'open', NOW()
 		FROM users u
 		WHERE u.telegram_id = $1
 	`, telegramID, title, description)
+	if err != nil {
+		return err
+	}
 
-	return err
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+
+	if rows == 0 {
+		return fmt.Errorf("user with telegram_id=%d not found", telegramID)
+	}
+
+	return nil
 }

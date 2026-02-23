@@ -138,7 +138,9 @@ func HandleUpdate(bot *tgbotapi.BotAPI, update tgbotapi.Update) {
 		}
 	}
 
-	_ = repository.SaveUser(user)
+	if err := repository.SaveUser(user); err != nil {
+		log.Println("save user error:", err)
+	}
 
 	if _, err := bot.Send(msg); err != nil {
 		log.Println("SEND ERROR:", err)

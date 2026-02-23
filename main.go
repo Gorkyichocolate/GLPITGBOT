@@ -11,7 +11,7 @@ import (
 func main() {
 	db.Connect()
 
-	telegram.Bot()
+	go telegram.Bot()
 	r := gin.Default()
 
 	api := r.Group("/api")

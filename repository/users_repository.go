@@ -5,9 +5,26 @@ import (
 	"GLPITGBOT/models"
 	"database/sql"
 	"errors"
+	"fmt"
 )
 
+func ensureDB() error {
+	if db.DB == nil {
+		return errors.New("database is not connected")
+	}
+
+	return nil
+}
+
 func GetUserByTelegramID(telegramID int64) (*models.User, error) {
+	if err := ensureDB(); err != nil {
+		return nil, err
+	}
+
+	if telegramID == 0 {
+		return nil, fmt.Errorf("invalid telegram id: %d", telegramID)
+	}
+
 	u := &models.User{}
 
 	err := db.DB.QueryRow(`
@@ -30,24 +47,47 @@ func GetUserByTelegramID(telegramID int64) (*models.User, error) {
 }
 
 func SaveUser(user *models.User) error {
-	_, err := db.DB.Exec(`
+	if err := ensureDB(); err != nil {
+		return err
+	}
+
+	if user == nil {
+		return errors.New("user is nil")
+	}
+
+	if user.TelegramID == 0 {
+		return fmt.Errorf("invalid telegram id: %d", user.TelegramID)
+	}
+
+	err := db.DB.QueryRow(`
 		INSERT INTO users (telegram_id, username, api_token, lang)
 		VALUES ($1, $2, $3, $4)
 		ON CONFLICT (telegram_id) DO UPDATE SET
 			username = EXCLUDED.username,
 			api_token = EXCLUDED.api_token,
 			lang = EXCLUDED.lang
+		RETURNING id, telegram_id, username, api_token, lang
 	`,
 		user.TelegramID,
 		user.Username,
 		user.ApiToken,
 		user.Lang,
+	).Scan(
+		&user.ID,
+		&user.TelegramID,
+		&user.Username,
+		&user.ApiToken,
+		&user.Lang,
 	)
 
 	return err
 }
 
 func EnsureUser(telegramID int64, username string) (*models.User, error) {
+	if telegramID == 0 {
+		return nil, fmt.Errorf("invalid telegram id: %d", telegramID)
+	}
+
 	user, err := GetUserByTelegramID(telegramID)
 
 	if err == nil {
@@ -62,7 +102,6 @@ func EnsureUser(telegramID int64, username string) (*models.User, error) {
 		TelegramID: telegramID,
 		Username:   username,
 		Lang:       "",
-		State:      models.StateIdle,
 	}
 
 	if err := SaveUser(user); err != nil {

@@ -11,6 +11,9 @@ import (
 
 func handleCallback(bot *tgbotapi.BotAPI, update tgbotapi.Update) {
 	q := update.CallbackQuery
+	if q == nil || q.Message == nil {
+		return
+	}
 
 	user, err := repository.EnsureUser(
 		q.From.ID,
