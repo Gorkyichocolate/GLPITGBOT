@@ -34,7 +34,7 @@ func handleCallback(bot *tgbotapi.BotAPI, update tgbotapi.Update) {
 	if !repository.IsUserAuthorized(user) {
 		session.Step = StepWaitApiToken
 		setSession(q.From.ID, session)
-		msg.Text = i18n.T(user.Lang, "enter_api_key")
+		msg.Text = i18n.T(user.Lang, "need_auth_first") + "\n" + i18n.T(user.Lang, "enter_api_key")
 		msg.ReplyMarkup = MainMenuKeyboard(user.Lang)
 
 		if _, err := bot.Send(tgbotapi.NewCallback(q.ID, "")); err != nil {
@@ -70,6 +70,7 @@ func handleCallback(bot *tgbotapi.BotAPI, update tgbotapi.Update) {
 	case CbLastTickets:
 		result, err := repository.GetLastUserTicketsText(q.From.ID, 5)
 		if err != nil {
+			log.Println("get last tickets error:", err)
 			msg.Text = i18n.T(user.Lang, "error_get_tickets")
 			msg.ReplyMarkup = MainMenuKeyboard(user.Lang)
 			break

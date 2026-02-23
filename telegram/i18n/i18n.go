@@ -10,6 +10,7 @@ var ENG = map[string]string{
 	"exit":             "Exit",
 
 	"btn_exit":          "Exit",
+	"btn_logout":        "Log out",
 	"btn_start":         "Start",
 	"btn_language":      "Change language",
 	"btn_notifications": "Notifications",
@@ -21,6 +22,7 @@ var ENG = map[string]string{
 	"ticket_created":           "✅ Ticket created successfully",
 	"auth_success":             "✅ Authorization successful",
 	"auth_failed":              "❌ Authorization failed. Send valid user API token",
+	"logged_out":               "✅ You are logged out",
 
 	"error_create_ticket":     "❌ Error creating ticket",
 	"error_get_tickets":       "❌ Error getting tickets",
@@ -30,6 +32,7 @@ var ENG = map[string]string{
 	"choose_menu":      "Please choose an option from the menu",
 	"choose_language":  "Choose language",
 	"language_changed": "Language changed successfully",
+	"need_auth_first":  "⚠️ First you need to authorize",
 	"enter_api_key":    "Send your user API token to authorize",
 }
 
@@ -43,6 +46,7 @@ var RUS = map[string]string{
 	"exit":             "Выход",
 
 	"btn_exit":          "Выйти",
+	"btn_logout":        "Выйти из аккаунта",
 	"btn_start":         "Старт",
 	"btn_language":      "Сменить язык",
 	"btn_notifications": "Уведомления",
@@ -54,6 +58,7 @@ var RUS = map[string]string{
 	"ticket_created":           "✅ Заявка успешно создана",
 	"auth_success":             "✅ Авторизация прошла успешно",
 	"auth_failed":              "❌ Ошибка авторизации. Отправьте корректный user API token",
+	"logged_out":               "✅ Вы вышли из аккаунта",
 
 	"error_create_ticket":     "❌ Ошибка при создании заявки",
 	"error_get_tickets":       "❌ Ошибка при получении заявок",
@@ -63,6 +68,7 @@ var RUS = map[string]string{
 	"choose_menu":      "Пожалуйста, выберите пункт меню",
 	"choose_language":  "Выберите язык",
 	"language_changed": "Язык успешно изменён",
+	"need_auth_first":  "⚠️ Сначала нужно авторизоваться",
 	"enter_api_key":    "Отправьте user API token для авторизации",
 }
 
@@ -76,6 +82,7 @@ var KAZ = map[string]string{
 	"exit":             "Шығу",
 
 	"btn_exit":          "Шығу",
+	"btn_logout":        "Аккаунттан шығу",
 	"btn_start":         "Бастау",
 	"btn_language":      "Тілді ауыстыру",
 	"btn_notifications": "Хабарламалар",
@@ -87,6 +94,7 @@ var KAZ = map[string]string{
 	"ticket_created":           "✅ Өтінім сәтті жасалды",
 	"auth_success":             "✅ Авторизация сәтті өтті",
 	"auth_failed":              "❌ Авторизация қатесі. Дұрыс user API token жіберіңіз",
+	"logged_out":               "✅ Сіз аккаунттан шықтыңыз",
 
 	"error_create_ticket":     "❌ Өтінім жасау кезінде қате",
 	"error_get_tickets":       "❌ Өтінімдерді алу қатесі",
@@ -96,6 +104,7 @@ var KAZ = map[string]string{
 	"choose_menu":      "Мәзірден таңдаңыз",
 	"choose_language":  "Тілді таңдаңыз",
 	"language_changed": "Тіл сәтті өзгертілді",
+	"need_auth_first":  "⚠️ Алдымен авторизациядан өту керек",
 	"enter_api_key":    "Авторизация үшін user API token жіберіңіз",
 }
 

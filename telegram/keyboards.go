@@ -35,6 +35,9 @@ func PreferencesKeyboard(lang string) tgbotapi.ReplyKeyboardMarkup {
 			tgbotapi.NewKeyboardButton(i18n.T(lang, "btn_language")),
 		),
 		tgbotapi.NewKeyboardButtonRow(
+			tgbotapi.NewKeyboardButton(i18n.T(lang, "btn_logout")),
+		),
+		tgbotapi.NewKeyboardButtonRow(
 			tgbotapi.NewKeyboardButton(i18n.T(lang, "btn_exit")),
 		),
 	)

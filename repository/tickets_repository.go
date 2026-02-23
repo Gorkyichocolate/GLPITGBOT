@@ -2,11 +2,36 @@ package repository
 
 import (
 	"GLPITGBOT/db"
+	"database/sql"
 	"errors"
 	"fmt"
 	"strings"
 	"time"
 )
+
+const (
+	TicketStatusWaiting   = "Ожидании"
+	TicketStatusReview    = "В рассмотрении"
+	TicketStatusResolved  = "Решена"
+	TicketStatusCompleted = "Завершена"
+)
+
+func normalizeTicketStatus(status string) string {
+	status = strings.TrimSpace(status)
+
+	switch status {
+	case TicketStatusWaiting, TicketStatusReview, TicketStatusResolved, TicketStatusCompleted:
+		return status
+	case "open", "pending", "pending_glpi", "glpi_failed", "new", "":
+		return TicketStatusWaiting
+	case "in_progress":
+		return TicketStatusReview
+	case "closed", "done":
+		return TicketStatusCompleted
+	default:
+		return TicketStatusWaiting
+	}
+}
 
 func GetLastUserTicketsText(telegramID int64, limit int) (string, error) {
 	if err := ensureDB(); err != nil {
@@ -81,28 +106,64 @@ func GetLastUserTicketsText(telegramID int64, limit int) (string, error) {
 }
 
 func CreateTicketByTelegramID(telegramID int64, title, description string) error {
+	_, err := CreateTicketByTelegramIDWithStatus(telegramID, title, description, TicketStatusWaiting)
+	return err
+}
+
+func CreateTicketByTelegramIDWithStatus(telegramID int64, title, description, status string) (int, error) {
+	if err := ensureDB(); err != nil {
+		return 0, err
+	}
+
+	if telegramID == 0 {
+		return 0, fmt.Errorf("invalid telegram id: %d", telegramID)
+	}
+
+	if strings.TrimSpace(title) == "" {
+		return 0, errors.New("title is empty")
+	}
+
+	if strings.TrimSpace(description) == "" {
+		return 0, errors.New("description is empty")
+	}
+
+	status = normalizeTicketStatus(status)
+
+	var ticketID int
+	err := db.DB.QueryRow(`
+		INSERT INTO tickets (user_id, title, description, status, created_at, updated_at)
+		SELECT u.id, $2, $3, $4, NOW(), NOW()
+		FROM users u
+		WHERE u.telegram_id = $1
+		RETURNING id
+	`, telegramID, title, description, status).Scan(&ticketID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return 0, fmt.Errorf("user with telegram_id=%d not found", telegramID)
+		}
+
+		return 0, err
+	}
+
+	return ticketID, nil
+}
+
+func UpdateTicketStatus(ticketID int, status string) error {
 	if err := ensureDB(); err != nil {
 		return err
 	}
 
-	if telegramID == 0 {
-		return fmt.Errorf("invalid telegram id: %d", telegramID)
+	if ticketID <= 0 {
+		return fmt.Errorf("invalid ticket id: %d", ticketID)
 	}
 
-	if strings.TrimSpace(title) == "" {
-		return errors.New("title is empty")
-	}
-
-	if strings.TrimSpace(description) == "" {
-		return errors.New("description is empty")
-	}
+	status = normalizeTicketStatus(status)
 
 	result, err := db.DB.Exec(`
-		INSERT INTO tickets (user_id, title, description, status, created_at)
-		SELECT u.id, $2, $3, 'open', NOW()
-		FROM users u
-		WHERE u.telegram_id = $1
-	`, telegramID, title, description)
+		UPDATE tickets
+		SET status = $2, updated_at = NOW()
+		WHERE id = $1
+	`, ticketID, status)
 	if err != nil {
 		return err
 	}
@@ -113,7 +174,7 @@ func CreateTicketByTelegramID(telegramID int64, title, description string) error
 	}
 
 	if rows == 0 {
-		return fmt.Errorf("user with telegram_id=%d not found", telegramID)
+		return fmt.Errorf("ticket with id=%d not found", ticketID)
 	}
 
 	return nil

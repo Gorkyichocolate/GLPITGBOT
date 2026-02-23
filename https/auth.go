@@ -18,6 +18,9 @@ type authResponse struct {
 
 func AuthByUserToken(userToken string) (string, error) {
 	baseURL := strings.TrimSpace(os.Getenv("GLPI_URL"))
+	if baseURL == "" {
+		baseURL = strings.TrimSpace(os.Getenv("GLPI_API"))
+	}
 	appToken := strings.TrimSpace(os.Getenv("APP_TOKEN"))
 	userToken = strings.TrimSpace(userToken)
 

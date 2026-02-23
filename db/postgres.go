@@ -42,5 +42,12 @@ func Connect() {
 		log.Fatal("❌ DB.Ping error:", err)
 	}
 
+	if _, err = DB.Exec(`
+		ALTER TABLE users
+		ADD COLUMN IF NOT EXISTS session_token TEXT NOT NULL DEFAULT ''
+	`); err != nil {
+		log.Fatal("❌ schema sync error (users.session_token):", err)
+	}
+
 	log.Println("✅ PostgreSQL connected")
 }
