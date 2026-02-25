@@ -8,6 +8,5 @@ type User struct {
 	Lang       string
 	SessionToken string
 
-	State        State
 	ActiveTicket *Ticket
 }

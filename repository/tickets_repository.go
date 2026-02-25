@@ -179,3 +179,78 @@ func UpdateTicketStatus(ticketID int, status string) error {
 
 	return nil
 }
+
+func BindExternalTicketID(localTicketID int, externalTicketID string) error {
+	if err := ensureDB(); err != nil {
+		return err
+	}
+
+	if localTicketID <= 0 {
+		return fmt.Errorf("invalid local ticket id: %d", localTicketID)
+	}
+
+	externalTicketID = strings.TrimSpace(externalTicketID)
+	if externalTicketID == "" {
+		return errors.New("external ticket id is empty")
+	}
+
+	result, err := db.DB.Exec(`
+		UPDATE tickets
+		SET external_ticket_id = $2, updated_at = NOW()
+		WHERE id = $1
+	`, localTicketID, externalTicketID)
+	if err != nil {
+		return err
+	}
+
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+
+	if rows == 0 {
+		return fmt.Errorf("ticket with id=%d not found", localTicketID)
+	}
+
+	return nil
+}
+
+func ListTelegramIDsByExternalTicketID(externalTicketID string) ([]int64, error) {
+	if err := ensureDB(); err != nil {
+		return nil, err
+	}
+
+	externalTicketID = strings.TrimSpace(externalTicketID)
+	if externalTicketID == "" {
+		return nil, errors.New("external ticket id is empty")
+	}
+
+	rows, err := db.DB.Query(`
+		SELECT DISTINCT u.telegram_id
+		FROM tickets t
+		JOIN users u ON u.id = t.user_id
+		WHERE t.external_ticket_id = $1
+	`, externalTicketID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	result := make([]int64, 0)
+	for rows.Next() {
+		var telegramID int64
+		if err := rows.Scan(&telegramID); err != nil {
+			return nil, err
+		}
+
+		if telegramID != 0 {
+			result = append(result, telegramID)
+		}
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return result, nil
+}

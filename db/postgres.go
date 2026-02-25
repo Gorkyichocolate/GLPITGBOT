@@ -49,5 +49,18 @@ func Connect() {
 		log.Fatal("❌ schema sync error (users.session_token):", err)
 	}
 
+	if _, err = DB.Exec(`
+		ALTER TABLE tickets
+		ADD COLUMN IF NOT EXISTS external_ticket_id TEXT
+	`); err != nil {
+		log.Fatal("❌ schema sync error (tickets.external_ticket_id):", err)
+	}
+
+	if _, err = DB.Exec(`
+		CREATE INDEX IF NOT EXISTS idx_tickets_external_ticket_id ON tickets(external_ticket_id)
+	`); err != nil {
+		log.Fatal("❌ schema sync error (idx_tickets_external_ticket_id):", err)
+	}
+
 	log.Println("✅ PostgreSQL connected")
 }

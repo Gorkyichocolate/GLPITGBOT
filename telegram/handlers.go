@@ -212,7 +212,25 @@ func HandleUpdate(bot *tgbotapi.BotAPI, update tgbotapi.Update) {
 			break
 		}
 
-		if _, _, err := glpihttp.CreateTicketWithSession(user.SessionToken, input); err != nil {
+		createBody, createStatusCode, err := glpihttp.CreateTicketWithSession(user.SessionToken, input)
+		if err != nil {
+			if createStatusCode == 401 && strings.Contains(string(createBody), "ERROR_SESSION_TOKEN_INVALID") {
+				newSessionToken, authErr := glpihttp.AuthByUserToken(user.ApiToken)
+				if authErr != nil {
+					log.Printf("glpi re-auth failed: %v", authErr)
+				} else {
+					user.SessionToken = newSessionToken
+					if saveErr := repository.SaveUser(user); saveErr != nil {
+						log.Printf("save refreshed session token failed: %v", saveErr)
+					} else {
+						createBody, createStatusCode, err = glpihttp.CreateTicketWithSession(user.SessionToken, input)
+					}
+				}
+			}
+		}
+
+		if err != nil {
+			log.Printf("glpi create ticket failed: status=%d err=%v response=%s", createStatusCode, err, string(createBody))
 			if updErr := repository.UpdateTicketStatus(localTicketID, repository.TicketStatusWaiting); updErr != nil {
 				log.Println("update local ticket status error:", updErr)
 			}
@@ -221,6 +239,15 @@ func HandleUpdate(bot *tgbotapi.BotAPI, update tgbotapi.Update) {
 			msg.ReplyMarkup = MainMenuKeyboard(user.Lang)
 			resetSession(telegramID)
 			break
+		}
+
+		externalTicketID, err := glpihttp.ExtractCreatedTicketID(createBody)
+		if err != nil {
+			log.Println("extract external ticket id error:", err)
+		} else {
+			if err := repository.BindExternalTicketID(localTicketID, externalTicketID); err != nil {
+				log.Println("bind external ticket id error:", err)
+			}
 		}
 
 		if err := repository.UpdateTicketStatus(localTicketID, repository.TicketStatusReview); err != nil {

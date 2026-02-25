@@ -23,7 +23,7 @@ func main() {
 	{
 		api.GET("/auth/check", https.CheckAuth)
 		api.POST("/ticket/create", https.CreateTicket)
-		api.POST("/ticket/update", https.NotifyTicketUpdate)
+		api.POST("/webhook", https.WebhookGLPI)
 	}
 
 	port := os.Getenv("PORT")

@@ -123,3 +123,38 @@ func IsUserAuthorized(user *models.User) bool {
 
 	return strings.TrimSpace(user.ApiToken) != "" && strings.TrimSpace(user.SessionToken) != ""
 }
+
+func ListAuthorizedTelegramIDs() ([]int64, error) {
+	if err := ensureDB(); err != nil {
+		return nil, err
+	}
+
+	rows, err := db.DB.Query(`
+		SELECT telegram_id
+		FROM users
+		WHERE COALESCE(TRIM(api_token), '') <> ''
+		  AND COALESCE(TRIM(session_token), '') <> ''
+	`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	result := make([]int64, 0)
+	for rows.Next() {
+		var telegramID int64
+		if err := rows.Scan(&telegramID); err != nil {
+			return nil, err
+		}
+
+		if telegramID != 0 {
+			result = append(result, telegramID)
+		}
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return result, nil
+}

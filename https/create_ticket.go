@@ -14,6 +14,36 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+type createTicketResponse struct {
+	ID json.RawMessage `json:"id"`
+}
+
+func ExtractCreatedTicketID(body []byte) (string, error) {
+	var resp createTicketResponse
+	if err := json.Unmarshal(body, &resp); err != nil {
+		return "", fmt.Errorf("invalid create ticket response: %w", err)
+	}
+
+	if len(resp.ID) == 0 {
+		return "", fmt.Errorf("id field is missing in create ticket response")
+	}
+
+	var idAsString string
+	if err := json.Unmarshal(resp.ID, &idAsString); err == nil {
+		idAsString = strings.TrimSpace(idAsString)
+		if idAsString != "" {
+			return idAsString, nil
+		}
+	}
+
+	var idAsNumber int64
+	if err := json.Unmarshal(resp.ID, &idAsNumber); err == nil {
+		return fmt.Sprintf("%d", idAsNumber), nil
+	}
+
+	return "", fmt.Errorf("unsupported id format in create ticket response")
+}
+
 type createTicketRequest struct {
 	Input models.CreateTicketInput `json:"input"`
 }
