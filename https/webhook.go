@@ -9,29 +9,46 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
-	"fmt"
 	"io"
 	"log"
 	"net/http"
 	"os"
-	"strconv"
 	"strings"
 
 	"github.com/gin-gonic/gin"
 )
 
-func firstNonEmpty(values ...string) string {
-	for _, v := range values {
-		if strings.TrimSpace(v) != "" {
-			return v
-		}
-	}
+const webhookDebugBodyPreviewLimit = 1200
 
-	return ""
+func webhookDebugEnabled() bool {
+	v := strings.ToLower(strings.TrimSpace(os.Getenv("WEBHOOK_DEBUG")))
+	return v == "1" || v == "true" || v == "yes"
 }
 
-func readWebhookSecret(c *gin.Context) string {
-	return strings.TrimSpace(firstNonEmpty(
+func debugWebhookRequest(c *gin.Context, body []byte) {
+	if !webhookDebugEnabled() {
+		return
+	}
+
+	bodyPreview := string(body)
+	if len(bodyPreview) > webhookDebugBodyPreviewLimit {
+		bodyPreview = bodyPreview[:webhookDebugBodyPreviewLimit] + "...(truncated)"
+	}
+
+	log.Printf(
+		"webhook debug: remote=%s method=%s path=%s content_type=%s user_agent=%s headers=%v body=%s",
+		c.ClientIP(),
+		c.Request.Method,
+		c.Request.URL.Path,
+		c.GetHeader("Content-Type"),
+		c.GetHeader("User-Agent"),
+		c.Request.Header,
+		bodyPreview,
+	)
+}
+
+func readIncomingWebhookKey(c *gin.Context) string {
+	for _, value := range []string{
 		c.GetHeader("X-Webhook-Key"),
 		c.GetHeader("X-Webhook-Secret"),
 		c.GetHeader("X-GLPI-Webhook-Key"),
@@ -39,54 +56,102 @@ func readWebhookSecret(c *gin.Context) string {
 		c.GetHeader("Authorization"),
 		c.Query("key"),
 		c.Query("secret"),
-	))
-}
+	} {
+		value = strings.TrimSpace(value)
+		if value == "" {
+			continue
+		}
 
-func normalizeBearerToken(value string) string {
-	v := strings.TrimSpace(value)
-	if strings.HasPrefix(strings.ToLower(v), "bearer ") {
-		return strings.TrimSpace(v[7:])
+		if strings.HasPrefix(strings.ToLower(value), "bearer ") {
+			return strings.TrimSpace(value[7:])
+		}
+
+		return value
 	}
 
-	return v
+	return ""
 }
 
-func verifyGLPISignature(secret string, body []byte, ts int64, sigHeader string) bool {
-	mac := hmac.New(sha256.New, []byte(secret))
-	mac.Write(body)
-	mac.Write([]byte(fmt.Sprintf("%d", ts)))
-	expected := "sha256=" + hex.EncodeToString(mac.Sum(nil))
+func uniqueNonEmpty(values ...string) []string {
+	seen := make(map[string]struct{}, len(values))
+	result := make([]string, 0, len(values))
 
-	return hmac.Equal([]byte(expected), []byte(strings.TrimSpace(sigHeader)))
+	for _, value := range values {
+		value = strings.TrimSpace(value)
+		if value == "" {
+			continue
+		}
+
+		if _, ok := seen[value]; ok {
+			continue
+		}
+
+		seen[value] = struct{}{}
+		result = append(result, value)
+	}
+
+	return result
+}
+
+func verifyHMACSHA256(secret string, message []byte, signatureHex string) bool {
+	mac := hmac.New(sha256.New, []byte(secret))
+	mac.Write(message)
+	expected := hex.EncodeToString(mac.Sum(nil))
+	return hmac.Equal([]byte(expected), []byte(signatureHex))
+}
+
+func verifyGLPISignature(secret string, body []byte, timestamp string, signature string) bool {
+	if strings.TrimSpace(signature) == "" {
+		return false
+	}
+
+	signature = strings.TrimSpace(strings.TrimPrefix(strings.ToLower(strings.TrimSpace(signature)), "sha256="))
+
+	if verifyHMACSHA256(secret, body, signature) {
+		return true
+	}
+
+	timestamp = strings.TrimSpace(timestamp)
+	if timestamp == "" {
+		return false
+	}
+
+	if verifyHMACSHA256(secret, append(append([]byte{}, body...), []byte(timestamp)...), signature) {
+		return true
+	}
+
+	return verifyHMACSHA256(secret, append(append([]byte{}, []byte(timestamp)...), body...), signature)
 }
 
 func verifyWebhookAuth(c *gin.Context, body []byte, allowedKeys ...string) bool {
-	incomingKey := normalizeBearerToken(readWebhookSecret(c))
-	if incomingKey != "" {
-		for _, key := range allowedKeys {
-			if strings.TrimSpace(key) != "" && incomingKey == strings.TrimSpace(key) {
-				return true
-			}
+	incomingKey := readIncomingWebhookKey(c)
+	validKeys := uniqueNonEmpty(allowedKeys...)
+	for _, key := range validKeys {
+		if incomingKey != "" && incomingKey == key {
+			return true
 		}
 	}
 
-	signSecret := strings.TrimSpace(os.Getenv("WEBHOOK_SECRET"))
-	if signSecret == "" {
+	signature := strings.TrimSpace(c.GetHeader("X-GLPI-Signature"))
+	timestamp := strings.TrimSpace(c.GetHeader("X-GLPI-Timestamp"))
+	if signature == "" {
 		return false
 	}
 
-	sig := strings.TrimSpace(c.GetHeader("X-GLPI-Signature"))
-	tsHeader := strings.TrimSpace(c.GetHeader("X-GLPI-Timestamp"))
-	if sig == "" || tsHeader == "" {
-		return false
+	secrets := uniqueNonEmpty(
+		strings.TrimSpace(os.Getenv("WEBHOOK_SECRET")),
+		strings.TrimSpace(os.Getenv("WEBHOOK_KEY")),
+		strings.TrimSpace(os.Getenv("WEBHOOK_TICKET")),
+		strings.TrimSpace(os.Getenv("WEBHOOK_COMMENT")),
+	)
+
+	for _, secret := range secrets {
+		if verifyGLPISignature(secret, body, timestamp, signature) {
+			return true
+		}
 	}
 
-	ts, err := strconv.ParseInt(tsHeader, 10, 64)
-	if err != nil {
-		return false
-	}
-
-	return verifyGLPISignature(signSecret, body, ts, sig)
+	return false
 }
 
 func WebhookGLPI(c *gin.Context) {
@@ -95,6 +160,8 @@ func WebhookGLPI(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "read body"})
 		return
 	}
+
+	debugWebhookRequest(c, body)
 
 	if !verifyWebhookAuth(
 		c,
@@ -124,14 +191,14 @@ func WebhookGLPI(c *gin.Context) {
 	_ = json.Unmarshal(body, &parentProbe)
 
 	var itemProbe struct {
-		ItemsID models.StringOrNumber `json:"items_id"`
+		ItemsID json.RawMessage `json:"items_id"`
 	}
 	_ = json.Unmarshal(base.Item, &itemProbe)
 
 	event := strings.ToLower(strings.TrimSpace(base.Event))
 	itemType := strings.ToLower(strings.TrimSpace(probe.ItemType))
 	hasParentItem := len(bytes.TrimSpace(parentProbe.ParentItem)) > 0 && string(bytes.TrimSpace(parentProbe.ParentItem)) != "null"
-	hasItemsID := itemProbe.ItemsID.String() != ""
+	hasItemsID := notifications.UnmarshalStringOrNumber(itemProbe.ItemsID) != ""
 	isFollowupPayload := itemType == "itilfollowup" || event == "add_followup" || (hasParentItem && hasItemsID)
 
 	switch {
@@ -162,9 +229,9 @@ func WebhookGLPI(c *gin.Context) {
 }
 
 func handleFollowupWebhook(c *gin.Context, payload models.FullFollowupWebhookPayload) {
-	ticketID := payload.ParentItem.ID.String()
+	ticketID := notifications.UnmarshalStringOrNumber(payload.ParentItem.ID)
 	if ticketID == "" {
-		ticketID = payload.Item.ItemsID.String()
+		ticketID = notifications.UnmarshalStringOrNumber(payload.Item.ItemsID)
 	}
 
 	if ticketID == "" {
@@ -172,10 +239,10 @@ func handleFollowupWebhook(c *gin.Context, payload models.FullFollowupWebhookPay
 		return
 	}
 
-	notificationText := models.BuildTicketCommentNotification(
+	notificationText := notifications.BuildTicketCommentNotification(
 		payload.ParentItem.Name,
-		payload.Item.Content,
-		payload.ParentItem.Status.String(),
+		notifications.FormatCommentText(payload.Item.Content),
+		notifications.UnmarshalStatusValue(payload.ParentItem.Status),
 	)
 
 	recipients, err := repository.ListTelegramIDsByExternalTicketID(ticketID)
@@ -201,7 +268,7 @@ func handleFollowupWebhook(c *gin.Context, payload models.FullFollowupWebhookPay
 }
 
 func handleTicketWebhook(c *gin.Context, payload models.FullTicketWebhookPayload) {
-	ticketID := payload.Item.ID.String()
+	ticketID := notifications.UnmarshalStringOrNumber(payload.Item.ID)
 	if ticketID == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Ticket ID is missing in webhook payload"})
 		return
@@ -209,10 +276,10 @@ func handleTicketWebhook(c *gin.Context, payload models.FullTicketWebhookPayload
 
 	statusValue := payload.Item.StatusName
 	if strings.TrimSpace(statusValue) == "" {
-		statusValue = payload.Item.Status.String()
+		statusValue = notifications.UnmarshalStatusValue(payload.Item.Status)
 	}
 
-	notificationText := models.BuildTicketStatusChangedNotification(
+	notificationText := notifications.BuildTicketStatusChangedNotification(
 		payload.Item.Name,
 		statusValue,
 	)
